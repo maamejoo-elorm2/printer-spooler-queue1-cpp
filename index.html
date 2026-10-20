@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Printer Spooler Queue Visualizer</title>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --text-color: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent: #22c55e;
+            --danger: #ef4444;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 900px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 2rem;
+            color: #818cf8;
+        }
+
+        header p {
+            color: var(--text-muted);
+            margin-top: 5px;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+            margin-bottom: 20px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+
+        .controls input {
+            flex: 1;
+            min-width: 180px;
+            padding: 10px 15px;
+            border-radius: 8px;
+            border: 1px solid #334155;
+            background-color: #0f172a;
+            color: white;
+            font-size: 1rem;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+            font-size: 0.95rem;
+        }
+
+        .btn-enqueue {
+            background-color: var(--primary);
+            color: white;
+        }
+        .btn-enqueue:hover { background-color: var(--primary-hover); }
+
+        .btn-dequeue {
+            background-color: var(--danger);
+            color: white;
+        }
+        .btn-dequeue:hover { background-color: #dc2626; }
+
+        .btn-clear {
+            background-color: #334155;
+            color: white;
+        }
+        .btn-clear:hover { background-color: #475569; }
+
+        /* Queue Visual Container */
+        .queue-track-container {
+            position: relative;
+            margin-top: 20px;
+            overflow-x: auto;
+            padding: 20px 0;
+        }
+
+        .queue-labels {
+            display: flex;
+            justify-content: space-between;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .queue-visual {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-height: 110px;
+            padding: 15px;
+            background-color: #0f172a;
+            border: 2px dashed #334155;
+            border-radius: 10px;
+            overflow-x: auto;
+        }
+
+        .empty-queue {
+            color: var(--text-muted);
+            width: 100%;
+            text-align: center;
+            font-style: italic;
+        }
+
+        /* Queue Item Card */
+        .queue-node {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            color: white;
+            padding: 12px 18px;
+            border-radius: 8px;
+            min-width: 120px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            animation: fadeIn 0.3s ease-in-out;
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        .queue-node.front {
+            border: 2px solid var(--accent);
+        }
+
+        .queue-node .node-title {
+            font-weight: bold;
+            font-size: 0.95rem;
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 130px;
+        }
+
+        .queue-node .node-meta {
+            font-size: 0.75rem;
+            opacity: 0.85;
+        }
+
+        .node-tag {
+            position: absolute;
+            top: -10px;
+            right: 8px;
+            font-size: 0.65rem;
+            background: var(--accent);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Stats & Logs */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-box {
+            background-color: var(--card-bg);
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-box h3 { margin: 0; font-size: 1.5rem; color: #818cf8; }
+        .stat-box p { margin: 5px 0 0; color: var(--text-muted); font-size: 0.85rem; }
+
+        .log-box {
+            background-color: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 12px;
+            height: 120px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 0.85rem;
+            color: #38bdf8;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <h1>Printer Spooler System</h1>
+            <p>Queue Data Structure Visualizer (FIFO: First-In, First-Out)</p>
+        </header>
+
+        <!-- Stats Section -->
+        <div class="stats-grid">
+            <div class="stat-box">
+                <h3 id="stat-total">0</h3>
+                <p>Jobs in Queue</p>
+            </div>
+            <div class="stat-box">
+                <h3 id="stat-front">None</h3>
+                <p>Front Job</p>
+            </div>
+            <div class="stat-box">
+                <h3 id="stat-rear">None</h3>
+                <p>Rear Job</p>
+            </div>
+        </div>
+
+        <!-- Controls Card -->
+        <div class="card">
+            <div class="controls">
+                <input type="text" id="jobNameInput" placeholder="Document Name (e.g., Report.pdf)" />
+                <input type="number" id="pageCountInput" placeholder="Pages" min="1" value="1" style="max-width: 100px;" />
+                <button class="btn-enqueue" onclick="enqueueJob()">Enqueue (Add Job)</button>
+                <button class="btn-dequeue" onclick="dequeueJob()">Dequeue (Print & Remove)</button>
+                <button class="btn-clear" onclick="clearQueue()">Clear Queue</button>
+            </div>
+
+            <!-- Queue Visualization Track -->
+            <div class="queue-track-container">
+                <div class="queue-labels">
+                    <span>&larr; Front (Next to Print)</span>
+                    <span>Rear (Just Added) &rarr;</span>
+                </div>
+                <div class="queue-visual" id="queueVisual">
+                    <div class="empty-queue">Queue is empty. Add a print job to begin!</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Activity Log -->
+        <div class="card">
+            <h3 style="margin-top:0; font-size: 1rem; color: var(--text-muted);">System Activity Log</h3>
+            <div class="log-box" id="logBox">
+                [System initialized. Waiting for print jobs...]
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let queue = [];
+
+        function logAction(message) {
+            const logBox = document.getElementById('logBox');
+            const time = new Date().toLocaleTimeString();
+            logBox.innerHTML += `<br>[${time}] ${message}`;
+            logBox.scrollTop = logBox.scrollHeight;
+        }
+
+        function updateUI() {
+            const visual = document.getElementById('queueVisual');
+            const statTotal = document.getElementById('stat-total');
+            const statFront = document.getElementById('stat-front');
+            const statRear = document.getElementById('stat-rear');
+
+            statTotal.textContent = queue.length;
+
+            if (queue.length === 0) {
+                visual.innerHTML = '<div class="empty-queue">Queue is empty. Add a print job to begin!</div>';
+                statFront.textContent = 'None';
+                statRear.textContent = 'None';
+                return;
+            }
+
+            statFront.textContent = queue[0].name;
+            statRear.textContent = queue[queue.length - 1].name;
+
+            visual.innerHTML = '';
+            queue.forEach((job, index) => {
+                const node = document.createElement('div');
+                node.className = `queue-node ${index === 0 ? 'front' : ''}`;
+                
+                let tagHtml = '';
+                if (index === 0 && queue.length === 1) {
+                    tagHtml = '<span class="node-tag">Front & Rear</span>';
+                } else if (index === 0) {
+                    tagHtml = '<span class="node-tag">Front</span>';
+                } else if (index === queue.length - 1) {
+                    tagHtml = '<span class="node-tag" style="background:#3b82f6;">Rear</span>';
+                }
+
+                node.innerHTML = `
+                    ${tagHtml}
+                    <div class="node-title">${job.name}</div>
+                    <div class="node-meta">${job.pages} page(s)</div>
+                `;
+                visual.appendChild(node);
+            });
+        }
+
+        function enqueueJob() {
+            const nameInput = document.getElementById('jobNameInput');
+            const pagesInput = document.getElementById('pageCountInput');
+            
+            const name = nameInput.value.trim();
+            const pages = parseInt(pagesInput.value) || 1;
+
+            if (!name) {
+                alert('Please enter a document name!');
+                return;
+            }
+
+            const newJob = { name, pages };
+            queue.push(newJob);
+            logAction(`Enqueued job: "${name}" (${pages} pages) to the rear.`);
+            
+            nameInput.value = '';
+            pagesInput.value = '1';
+            updateUI();
+        }
+
+        function dequeueJob() {
+            if (queue.length === 0) {
+                alert('Queue is empty! No jobs to print.');
+                logAction('Dequeue failed: Queue underflow (Empty queue).');
+                return;
+            }
+
+            const printedJob = queue.shift();
+            logAction(`Dequeued & Printed: "${printedJob.name}" from the front.`);
+            updateUI();
+        }
+
+        function clearQueue() {
+            if (queue.length === 0) return;
+            queue = [];
+            logAction('Queue cleared manually.');
+            updateUI();
+        }
+    </script>
+</body>
+</html>
